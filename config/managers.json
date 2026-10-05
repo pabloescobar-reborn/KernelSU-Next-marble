@@ -2,13 +2,11 @@
   "kernelsu": {
     "display": "KernelSU",
     "repo": "tiann/KernelSU",
-    "setup_path": "kernel/setup.sh",
     "susfs": false
   },
   "kernelsu-next": {
     "display": "KernelSU-Next",
     "repo": "KernelSU-Next/KernelSU-Next",
-    "setup_path": "kernel/setup.sh",
     "susfs": {
       "repo": "pershoot/KernelSU-Next",
       "ref": "dev-susfs"
@@ -17,7 +15,6 @@
   "sukisu-ultra": {
     "display": "SukiSU Ultra",
     "repo": "SukiSU-Ultra/SukiSU-Ultra",
-    "setup_path": "kernel/setup.sh",
     "susfs": {
       "ref": "builtin"
     }
@@ -25,7 +22,6 @@
   "resukisu": {
     "display": "ReSukiSU",
     "repo": "ReSukiSU/ReSukiSU",
-    "setup_path": "kernel/setup.sh",
     "susfs": {
       "ref": "main"
     }
