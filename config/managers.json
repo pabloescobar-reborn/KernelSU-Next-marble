@@ -11,19 +11,5 @@
       "repo": "pershoot/KernelSU-Next",
       "ref": "dev-susfs"
     }
-  },
-  "sukisu-ultra": {
-    "display": "SukiSU Ultra",
-    "repo": "SukiSU-Ultra/SukiSU-Ultra",
-    "susfs": {
-      "ref": "builtin"
-    }
-  },
-  "resukisu": {
-    "display": "ReSukiSU",
-    "repo": "ReSukiSU/ReSukiSU",
-    "susfs": {
-      "ref": "main"
-    }
   }
 }

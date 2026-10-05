@@ -18,8 +18,6 @@ done
 case "${MANAGER}" in
   kernelsu)      dir=KernelSU ;;
   kernelsu-next) dir=KernelSU-Next ;;
-  sukisu-ultra)  dir=SukiSU-Ultra ;;
-  resukisu)      dir=ReSukiSU ;;
   *) echo "::error::Unknown manager ${MANAGER}"; exit 1 ;;
 esac
 m() { jq -r --arg m "${MANAGER}" "$1" "${MJ}"; }
@@ -65,3 +63,18 @@ if [[ "${ENABLE_SUSFS}" == "true" ]]; then
   cp "${p}"/include/linux/*.h include/linux/
   echo "SUSFS applied"
 fi
+
+need="$(grep -rhoE '\bksu_[a-z0-9_]+\(' fs kernel security drivers/input mm 2>/dev/null | tr -d '(' | sort -u || true)"
+missing=""
+for sym in ${need}; do
+  grep -rqw "${sym}" drivers/kernelsu/ || missing="${missing} ${sym}"
+done
+if [[ -n "${missing}" && "${ENABLE_SUSFS}" != "true" ]]; then
+  echo "::warning::kernel calls ksu symbols that ${MANAGER} does not define:${missing}"
+elif [[ -n "${missing}" ]]; then
+  echo "::error::kernel calls ksu symbols that ${MANAGER}@${mref:-default} does not define:${missing}"
+  echo "::error::SUSFS branch ${SUSFS_BRANCH} and the manager ref are out of sync (pin SUSFS_BRANCH or change the manager ref)"
+  exit 1
+fi
+echo "hook symbols OK: $(echo ${need})"
+

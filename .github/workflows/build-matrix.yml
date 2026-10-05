@@ -37,7 +37,7 @@ jobs:
       fail-fast: false
       matrix:
         source: [aosp-pablo, clo-marble]
-        manager: [kernelsu, kernelsu-next, sukisu-ultra, resukisu]
+        manager: [kernelsu, kernelsu-next]
         include:
           - { source: aosp-pablo, short: aosp }
           - { source: clo-marble, short: clo }
@@ -155,4 +155,4 @@ jobs:
           tag="$(date +%Y.%m.%d)"
           gh release create "$tag" release/* --draft --target "$GITHUB_SHA" \
             --title "Marble kernel | $tag" \
-            --notes "aosp/ and clo/ kernels (KernelSU, KernelSU-Next, SukiSU Ultra, ReSukiSU). The installer picks the folder from ro.sys.buildtype; choose the variant with the volume keys, confirm with power."
+            --notes "aosp/ and clo/ kernels (KernelSU, KernelSU-Next). The installer picks the folder from ro.sys.buildtype; choose the variant with the volume keys, confirm with power."

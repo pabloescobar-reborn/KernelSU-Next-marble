@@ -38,13 +38,20 @@ done
 
 cfg() { scripts/config --file "${OUT}/.config" "$@" || true; }
 cfg -e KSU
-[[ "${ENABLE_SUSFS}" != "true" ]] || cfg -e KSU_SUSFS
+if [[ "${ENABLE_SUSFS}" == "true" ]]; then
+  cfg -e KSU_SUSFS
+  # the SUSFS kernel patch inserts the ksu_* hooks by hand, so the manager must be built in
+  # manual-hook mode (kprobe mode does not define ksu_handle_*_sucompat -> undefined symbol at link)
+  if grep -rqE '^config KSU_MANUAL_HOOK' drivers/kernelsu/; then cfg -e KSU_MANUAL_HOOK; fi
+  if grep -rqE '^config KSU_KPROBES_HOOK' drivers/kernelsu/; then cfg -d KSU_KPROBES_HOOK; fi
+fi
 case "${LTO}" in
   none) cfg -d LTO_CLANG -d LTO_CLANG_THIN -d LTO_CLANG_FULL -e LTO_NONE ;;
   thin) cfg -d LTO_NONE -d LTO_CLANG_FULL -e LTO_CLANG -e LTO_CLANG_THIN ;;
   full) cfg -d LTO_NONE -d LTO_CLANG_THIN -e LTO_CLANG -e LTO_CLANG_FULL ;;
 esac
 make "${M[@]}" olddefconfig
+grep '^CONFIG_KSU' "${OUT}/.config" || true
 grep -q '^CONFIG_KSU=y$' "${OUT}/.config" || { echo "::error::CONFIG_KSU not enabled"; exit 1; }
 if [[ "${ENABLE_SUSFS}" == "true" ]]; then
   grep -q '^CONFIG_KSU_SUSFS=y$' "${OUT}/.config" || { echo "::error::CONFIG_KSU_SUSFS not enabled"; exit 1; }

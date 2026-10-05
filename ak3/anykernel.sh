@@ -31,13 +31,40 @@ ui_print " "
 ui_print "        Kernel by Pablo Escobar"
 ui_print " "
 
+PROPFILES="/system_root/system/build.prop /system/build.prop /product/etc/build.prop /system_ext/etc/build.prop"
+
 detect_source() {
-  for f in /system_root/system/build.prop /system/build.prop /product/etc/build.prop /system_ext/etc/build.prop; do
+  SRC=unknown
+  HOW=none
+
+  for f in $PROPFILES; do
     [ -f "$f" ] || continue
-    v=$(grep -m1 '^ro.sys.buildtype=' "$f" | cut -d= -f2 | tr -d '\r ' | tr '[:upper:]' '[:lower:]');
-    [ -n "$v" ] && { echo "$v"; return; }
+
+    v=$(grep -m1 '^ro\.sys\.buildtype=' "$f" |
+      cut -d= -f2- |
+      tr -d '\r ' |
+      tr '[:upper:]' '[:lower:]')
+
+    case "$v" in
+      aosp|clo)
+        SRC="$v"
+        HOW="ro.sys.buildtype"
+        return 0
+        ;;
+    esac
   done
-  echo unknown
+
+  for f in $PROPFILES; do
+    [ -f "$f" ] || continue
+
+    if grep -qiE 'aospa|neoteric' "$f"; then
+      SRC=clo
+      HOW="AOSPA/Neoteric ROM"
+      return 0
+    fi
+  done
+
+  return 1
 }
 
 unsupported() {
@@ -61,9 +88,9 @@ wait_key() {
 }
 
 ui_print "Checking ROM compatibility..."
-SRC=$(detect_source)
+detect_source || true
 case "$SRC" in
-  aosp|clo) ui_print "Detected ROM type: $SRC";;
+  aosp|clo) ui_print "Detected ROM type: $SRC (via $HOW)";;
   *) unsupported;;
 esac
 
@@ -73,8 +100,6 @@ ui_print " "
 ui_print "Select kernel to flash:"
 ui_print "  1. KernelSU"
 ui_print "  2. KernelSU-Next"
-ui_print "  3. SukiSU Ultra"
-ui_print "  4. ReSukiSU"
 ui_print " "
 ui_print "  Vol+ / Vol- = move   Power = confirm"
 
@@ -83,14 +108,12 @@ while true; do
   case $sel in
     1) name=kernelsu; lbl="1. KernelSU";;
     2) name=kernelsu-next; lbl="2. KernelSU-Next";;
-    3) name=sukisu-ultra; lbl="3. SukiSU Ultra";;
-    4) name=resukisu; lbl="4. ReSukiSU";;
   esac
   ui_print "  > $lbl"
   wait_key; k=$?
   case $k in
-    1) sel=$((sel - 1)); [ $sel -lt 1 ] && sel=4;;
-    2) sel=$((sel % 4 + 1));;
+    1) sel=$((sel - 1)); [ $sel -lt 1 ] && sel=2;;
+    2) sel=$((sel % 2 + 1));;
     3)
       if [ -s "$kdir/$SRC/$name" ]; then break; fi
       ui_print "  ($name is not available in this zip, choose another)";;
