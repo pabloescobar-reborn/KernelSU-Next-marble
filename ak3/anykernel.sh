@@ -94,38 +94,49 @@ case "$SRC" in
   *) unsupported;;
 esac
 
-command -v getevent >/dev/null 2>&1 || abort "getevent not available in this recovery; cannot show menu. Aborting...";
+if [ -s "$kdir/Image" ]; then
+  read ZSRC ZMGR < "$kdir/variant"
+  if [ "$SRC" != "$ZSRC" ]; then
+    ui_print " "
+    ui_print " This zip is for $ZSRC ROMs, but this ROM is $SRC."
+    abort "Wrong zip for this ROM. Aborting...";
+  fi
+  name="$ZMGR"
+  ui_print " "; ui_print "Flashing: $name ($SRC)";
+else
+  command -v getevent >/dev/null 2>&1 || abort "getevent not available in this recovery; cannot show menu. Aborting...";
 
-ui_print " "
-ui_print "Select kernel to flash:"
-ui_print "  1. KernelSU"
-ui_print "  2. KernelSU-Next"
-ui_print " "
-ui_print "  Vol+ / Vol- = move   Power = confirm"
+  ui_print " "
+  ui_print "Select kernel to flash:"
+  ui_print "  1. KernelSU"
+  ui_print "  2. KernelSU-Next"
+  ui_print " "
+  ui_print "  Vol+ / Vol- = move   Power = confirm"
 
-sel=1
-while true; do
-  case $sel in
-    1) name=kernelsu; lbl="1. KernelSU";;
-    2) name=kernelsu-next; lbl="2. KernelSU-Next";;
-  esac
-  ui_print "  > $lbl"
-  wait_key; k=$?
-  case $k in
-    1) sel=$((sel - 1)); [ $sel -lt 1 ] && sel=2;;
-    2) sel=$((sel % 2 + 1));;
-    3)
-      if [ -s "$kdir/$SRC/$name" ]; then break; fi
-      ui_print "  ($name is not available in this zip, choose another)";;
-  esac
-done
+  sel=1
+  while true; do
+    case $sel in
+      1) name=kernelsu; lbl="1. KernelSU";;
+      2) name=kernelsu-next; lbl="2. KernelSU-Next";;
+    esac
+    ui_print "  > $lbl"
+    wait_key; k=$?
+    case $k in
+      1) sel=$((sel - 1)); [ $sel -lt 1 ] && sel=2;;
+      2) sel=$((sel % 2 + 1));;
+      3)
+        if [ -s "$kdir/$SRC/$name" ]; then break; fi
+        ui_print "  ($name is not available in this zip, choose another)";;
+    esac
+  done
 
-ui_print " "; ui_print "Flashing: $lbl ($SRC)";
-cp -f "$kdir/$SRC/$name" "$kdir/Image" || abort "Unable to stage kernel Image. Aborting...";
-for f in dtb dtbo; do
-  [ -s "$kdir/$SRC/$f" ] && cp -f "$kdir/$SRC/$f" "$kdir/$f";
-done
-rm -rf "$kdir/aosp" "$kdir/clo";
+  ui_print " "; ui_print "Flashing: $lbl ($SRC)";
+  cp -f "$kdir/$SRC/$name" "$kdir/Image" || abort "Unable to stage kernel Image. Aborting...";
+  for f in dtb dtbo; do
+    [ -s "$kdir/$SRC/$f" ] && cp -f "$kdir/$SRC/$f" "$kdir/$f";
+  done
+  rm -rf "$kdir/aosp" "$kdir/clo";
+fi
 
 backup_current_boot() {
   backup_dir="/sdcard/marble-kernel-backup";

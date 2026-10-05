@@ -16,6 +16,10 @@ on:
         description: "Enable ccache / ThinLTO cache"
         type: boolean
         default: true
+      combined_zip:
+        description: "One combined zip (aosp/ + clo/ with a menu) instead of 4 separate zips"
+        type: boolean
+        default: false
       create_draft_release:
         description: "Create a draft GitHub release"
         type: boolean
@@ -99,9 +103,26 @@ jobs:
       - name: Build kernel
         run: bash scripts/build-kernel.sh
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      # default: one standalone zip per source + manager
+      - name: Package zip
+        if: ${{ !inputs.combined_zip }}
+        run: bash scripts/package.sh single
+
+      - name: Upload zip
+        if: ${{ !inputs.combined_zip }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ${{ matrix.short }}_${{ matrix.manager }}
+          name: zip_${{ matrix.short }}_${{ matrix.manager }}
+          path: release/*.zip
+          if-no-files-found: error
+          compression-level: 0
+
+      # combined mode: hand the raw kernel to the package job
+      - name: Upload kernel
+        if: ${{ inputs.combined_zip }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bin_${{ matrix.short }}_${{ matrix.manager }}
           path: dist/${{ matrix.short }}/${{ matrix.manager }}
           if-no-files-found: error
           retention-days: 3
@@ -120,12 +141,8 @@ jobs:
   package:
     name: Package combined zip
     needs: build
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && inputs.combined_zip }}
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    env:
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -133,26 +150,41 @@ jobs:
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: "*_*"
+          pattern: "bin_*"
           path: artifacts
 
       - name: Build combined zip
-        id: pkg
         run: |
           command -v zip >/dev/null || sudo apt-get install -y zip
-          bash scripts/package.sh
+          bash scripts/package.sh combined
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: marble-kernel
-          path: release/*
+          name: zip_combined
+          path: release/*.zip
           if-no-files-found: error
           compression-level: 0
 
-      - name: Draft release
-        if: ${{ inputs.create_draft_release }}
+  release:
+    name: Draft release
+    needs: [build, package]
+    if: ${{ !cancelled() && inputs.create_draft_release }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: "zip_*"
+          path: release
+          merge-multiple: true
+
+      - name: Create draft release
         run: |
           tag="$(date +%Y.%m.%d)"
-          gh release create "$tag" release/* --draft --target "$GITHUB_SHA" \
+          ls -l release
+          gh release create "$tag" release/*.zip --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
             --title "Marble kernel | $tag" \
-            --notes "aosp/ and clo/ kernels (KernelSU, KernelSU-Next). The installer picks the folder from ro.sys.buildtype; choose the variant with the volume keys, confirm with power."
+            --notes "Flash the zip that matches your ROM (aosp or clo) and root manager. The installer checks ro.sys.buildtype."
